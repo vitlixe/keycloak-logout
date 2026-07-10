@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log out of SSO</title>
+  <style>
+    :root {
+      --bg: #23262c;
+      --bg-bye: #0c0d0f;
+      --field: #1b1e23;
+      --accent: #3f5c8c;
+      --accent-2: #4d6fa6;
+      --text: #f3f4f6;
+      --muted: #9aa3af;
+      --hair: rgba(255, 255, 255, .08);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+
+    body {
+      width: 360px;
+      height: 400px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      transition: background .4s ease;
+    }
+
+    .frame {
+      position: fixed;
+      inset: 8px;
+      border: 1px solid var(--hair);
+      border-radius: 18px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .gear {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 6;
+      display: flex;
+      padding: 6px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color .2s ease, background .2s ease, opacity .3s ease, transform .4s ease;
+    }
+    .gear:hover { color: var(--text); background: rgba(255, 255, 255, .08); }
+    .gear:active { transform: rotate(35deg); }
+    .gear svg { width: 18px; height: 18px; display: block; }
+    body.bye .gear, body.settings-open .gear { opacity: 0; pointer-events: none; }
+
+    /* ---------- main screen ---------- */
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      z-index: 2;
+      transition: opacity .4s ease, transform .4s ease;
+    }
+    body.bye .card, body.settings-open .card { display: none; }
+
+    .logo-badge {
+      width: 74px;
+      height: 74px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .4);
+    }
+    .logo-badge img { width: 74px; height: 74px; display: block; border-radius: 18px; }
+
+    .titles { text-align: center; }
+    .titles .name {
+      margin: 0;
+      max-width: 300px;
+      font-size: 1.02rem;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .titles .name.muted { color: var(--muted); font-weight: 500; }
+
+    .logout-btn {
+      margin-top: 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      font-size: .98rem;
+      font-weight: 600;
+      padding: .8rem 1.7rem;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 8px 20px rgba(63, 92, 140, .4);
+      transition: transform .12s ease, background .2s ease, box-shadow .25s ease;
+    }
+    .logout-btn:hover { background: var(--accent-2); box-shadow: 0 12px 26px rgba(63, 92, 140, .55); }
+    .logout-btn:active { transform: scale(.96); }
+    .logout-btn svg { width: 18px; height: 18px; }
+
+    /* ---------- settings screen ---------- */
+    .settings {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+      padding: 0 26px;
+      z-index: 4;
+    }
+    body.settings-open .settings { display: flex; }
+
+    .s-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .s-head h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+    .back {
+      display: flex;
+      padding: 6px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color .2s ease, background .2s ease;
+    }
+    .back:hover { color: var(--text); background: rgba(255, 255, 255, .08); }
+    .back svg { width: 18px; height: 18px; display: block; }
+
+    .settings label.fld { display: block; font-size: .76rem; font-weight: 600; color: var(--muted); margin: 12px 0 6px; }
+    .settings input[type="text"] {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      font-size: .9rem;
+      color: var(--text);
+      background: var(--field);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 10px;
+      outline: none;
+    }
+    .settings input[type="text"]:focus { border-color: var(--accent); }
+    .settings input[type="text"].error { border-color: #e5484d; box-shadow: 0 0 0 3px rgba(229, 72, 77, .28); }
+    .settings .hint { font-size: .7rem; color: var(--muted); margin: 4px 0 0; }
+    .settings .err { font-size: .7rem; color: #e5484d; margin: 4px 0 0; display: none; }
+    .settings .err.show { display: block; }
+
+    .check-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: .86rem; }
+    .check-row input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+    .s-actions { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+    .save-btn {
+      border: none;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      font-size: .9rem;
+      font-weight: 600;
+      padding: 9px 20px;
+      min-width: 104px;
+      border-radius: 10px;
+      transition: background .25s ease;
+    }
+    .save-btn:hover { background: var(--accent-2); }
+    .save-btn.ok, .save-btn.ok:hover { background: #1f9d57; }
+
+    /* ---------- logout confirmation ---------- */
+    body.bye { background: radial-gradient(120% 120% at 50% 0%, var(--bg) 0%, var(--bg-bye) 80%); }
+    .done {
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 3;
+      pointer-events: none;
+    }
+    body.bye .done { display: flex; animation: pop .35s ease both; }
+    .done .check {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #1f9d57;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .done .check svg { width: 30px; height: 30px; }
+    .done .t { font-size: 1.1rem; font-weight: 600; }
+    @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div class="frame"></div>
+
+  <button class="gear" id="settings-open" type="button" title="Settings" aria-label="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+
+  <main class="card">
+    <div class="logo-badge">
+      <img src="../icons/icon-128.png" alt="Keycloak Logout">
+    </div>
+    <div class="titles">
+      <p class="name" id="target">Not configured</p>
+    </div>
+    <button class="logout-btn" id="logout" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      <span>Log out</span>
+    </button>
+  </main>
+
+  <section class="settings">
+    <div class="s-head">
+      <button class="back" id="settings-back" type="button" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+      </button>
+      <h2>Settings</h2>
+    </div>
+
+    <label class="fld" for="host">Host</label>
+    <input type="text" id="host" placeholder="auth.example.com" spellcheck="false">
+    <p class="err" id="host-err">Required</p>
+    <p class="hint">No https:// or slashes.</p>
+
+    <label class="fld" for="realm">Realm</label>
+    <input type="text" id="realm" placeholder="master" spellcheck="false">
+    <p class="err" id="realm-err">Required</p>
+
+    <div class="check-row">
+      <input type="checkbox" id="notify">
+      <label for="notify">Notification after logout</label>
+    </div>
+
+    <div class="s-actions">
+      <button class="save-btn" id="settings-save" type="button">Save</button>
+    </div>
+  </section>
+
+  <div class="done">
+    <div class="check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <div class="t">Logging out…</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

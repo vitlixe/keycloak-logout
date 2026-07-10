@@ -1,0 +1,8 @@
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Packed extension / build artifacts
+dist/
+*.zip
