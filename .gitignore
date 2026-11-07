@@ -1,4 +1,5 @@
-# Editors
+# OS and editors
+.DS_Store
 .vscode/
 .idea/
 *.swp
@@ -6,3 +7,6 @@
 # Packed extension / build artifacts
 dist/
 *.zip
+
+# Node tooling
+node_modules/
