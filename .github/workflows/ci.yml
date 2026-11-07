@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  KEYCLOAK_IMAGE: quay.io/keycloak/keycloak:26.8.1
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node --test tests/*.test.js
+      - name: Syntax check
+        run: for f in extension/*/*.js; do node --check "$f"; done
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # The asset name stays the same in every release so that
+      # releases/latest/download/keycloak-logout.zip always points to the newest one.
+      - run: scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # Installs the built zip into Chromium and logs out of a real Keycloak, both
+  # at the root path and under the /auth prefix of Keycloak < 17.
+  install-test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: root path
+            prefix: ""
+          - name: /auth prefix
+            prefix: /auth
+    name: install-test (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Verify checksums
+        run: cd dist && sha256sum -c checksums.sha256
+      - name: Unpack the extension
+        run: unzip -q dist/keycloak-logout.zip -d "${RUNNER_TEMP}/ext"
+      - name: Install Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Start Keycloak
+        run: e2e/start-keycloak.sh "${{ matrix.prefix }}"
+      - name: End-to-end test
+        env:
+          EXT_DIR: ${{ runner.temp }}/ext/keycloak-logout
+          KC_HOST: localhost:8443${{ matrix.prefix }}
+        run: node --test e2e/*.test.mjs
+      - name: Keycloak logs
+        if: failure()
+        run: docker logs kc-logout-e2e 2>&1 | tail -n 200
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check, install-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check tag matches VERSION
+        run: |
+          version="$(cat VERSION)"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match version ${version} in VERSION"
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      # Same format as GoReleaser's changelog: commits since the previous tag,
+      # sorted by message, without docs:, test:, ci: and merge commits.
+      - name: Write changelog
+        run: |
+          previous="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          range="${previous:+${previous}..}${GITHUB_REF_NAME}"
+          {
+            echo "## Changelog"
+            # grep exits with 1 when every commit is filtered out; that is
+            # an empty changelog, not an error.
+            git log --no-merges --format='%H %s' "${range}" \
+              | { grep -vE '^[0-9a-f]+ (docs|test|ci):' || true; } \
+              | sort -k2 \
+              | sed 's/^/* /'
+          } > dist/CHANGELOG.md
+          cat dist/CHANGELOG.md
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/keycloak-logout.zip dist/checksums.sha256 \
+            --title "${GITHUB_REF_NAME}" --notes-file dist/CHANGELOG.md
