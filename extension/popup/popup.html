@@ -176,6 +176,7 @@
     }
     .save-btn:hover { background: var(--accent-2); }
     .save-btn.ok, .save-btn.ok:hover { background: #1f9d57; }
+    .save-btn.fail, .save-btn.fail:hover { background: #e5484d; }
 
     /* ---------- logout confirmation ---------- */
     body.bye { background: radial-gradient(120% 120% at 50% 0%, var(--bg) 0%, var(--bg-bye) 80%); }
@@ -201,8 +202,15 @@
       justify-content: center;
     }
     .done .check svg { width: 30px; height: 30px; }
+    body.failed .done .check { background: #e5484d; }
+    body.failed .done .check svg { display: none; }
+    body.failed .done .check::after { content: "!"; color: #fff; font-size: 30px; font-weight: 700; }
     .done .t { font-size: 1.1rem; font-weight: 600; }
     @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .save-btn:disabled { cursor: wait; opacity: .7; }
+    .settings .status { margin: 10px 0 0; font-size: .72rem; line-height: 1.4; color: var(--muted); }
+    .settings .status:empty { display: none; }
+    .settings .status.error { color: #e5484d; }
   </style>
 </head>
 <body>
@@ -249,7 +257,7 @@
     <label class="fld" for="host">Host</label>
     <input type="text" id="host" placeholder="auth.example.com" spellcheck="false">
     <p class="err" id="host-err">Required</p>
-    <p class="hint">No https:// or slashes.</p>
+    <p class="hint">Server address, e.g. auth.example.com or auth.example.com/auth</p>
 
     <label class="fld" for="realm">Realm</label>
     <input type="text" id="realm" placeholder="master" spellcheck="false">
@@ -263,6 +271,7 @@
     <div class="s-actions">
       <button class="save-btn" id="settings-save" type="button">Save</button>
     </div>
+    <p id="settings-status" class="status" role="status"></p>
   </section>
 
   <div class="done">
@@ -272,9 +281,11 @@
         <polyline points="20 6 9 17 4 12"/>
       </svg>
     </div>
-    <div class="t">Logging out…</div>
+    <div class="t" id="done-text">Logging out…</div>
   </div>
 
+  <script src="../common/config.js"></script>
+  <script src="../common/access.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
