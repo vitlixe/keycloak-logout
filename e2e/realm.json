@@ -1,0 +1,26 @@
+{
+  "realm": "e2e",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "e2e-app",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "frontchannelLogout": false,
+      "redirectUris": ["*"]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@example.test",
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Test",
+      "credentials": [
+        { "type": "password", "value": "alice-e2e-password", "temporary": false }
+      ]
+    }
+  ]
+}

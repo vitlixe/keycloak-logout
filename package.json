@@ -1,0 +1,8 @@
+{
+  "name": "keycloak-logout",
+  "private": true,
+  "description": "Development tooling for the Keycloak Logout extension; the version lives in VERSION.",
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}
